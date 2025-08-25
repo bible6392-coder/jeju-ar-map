@@ -1,122 +1,53 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>제주 맛집 AR</title>
-  <style>
-    body {
-      margin:0;
-      padding:0;
-      font-family:sans-serif;
-      background:#000;
-      color:#fff;
-      text-align:center;
-    }
-    h1 { margin-top:50px; }
-    .bottom-controls {
-      position:fixed;
-      bottom:30px;
-      left:50%;
-      transform:translateX(-50%);
-      display:flex;
-      gap:20px;
-    }
-    .control-btn {
-      width:120px;
-      height:50px;
-      border:none;
-      border-radius:10px;
-      font-size:16px;
-      cursor:pointer;
-    }
-    .capture-btn { background:#ff6b6b; color:#fff; }
-    .loc-btn { background:#eee; color:#000; }
-  </style>
-</head>
-<body>
-  <h1>Capacitor Bridge Test</h1>
-  <p>[Bridge] cap=true plugins=CameraPreview, Geolocation, Camera, CapacitorCookies, WebView, Filesystem, CapacitorHttp</p>
+<!-- 버튼 -->
+<button id="openArBtn" class="control-btn capture-btn">📷 네이티브 AR 열기</button>
 
-  <!-- 네이티브 AR 실행 버튼 -->
-  <button id="openArBtn" class="control-btn capture-btn">📷 네이티브 AR 열기</button>
-
-  <!-- 기존 카메라/위치 버튼 -->
-  <div class="bottom-controls">
-    <button id="captureBtn" class="control-btn capture-btn">📷 촬영</button>
-    <button id="locBtn" class="control-btn loc-btn">📍 위치</button>
-  </div>
-
-  <!-- ✅ Capacitor JS Bridge -->
-  <script src="capacitor.js"></script>
-  <script type="module">
-    import { Camera, CameraResultType } from '@capacitor/camera';
-    import { Filesystem, Directory } from '@capacitor/filesystem';
-    import { Geolocation } from '@capacitor/geolocation';
-
-    // 권한 요청
-    async function requestAllPermissions() {
-      try {
-        await Camera.requestPermissions();
-        await Geolocation.requestPermissions();
-        console.log("권한 허용됨");
-      } catch (err) {
-        console.error("권한 요청 실패:", err);
-      }
-    }
-
-    // 사진 촬영 & 저장
-    async function capturePhoto() {
-      try {
-        const photo = await Camera.getPhoto({
-          resultType: CameraResultType.Base64,
-          source: 'camera',
-          quality: 80
-        });
-        const fileName = `photo_${Date.now()}.jpeg`;
-        await Filesystem.writeFile({
-          path: fileName,
-          data: photo.base64String,
-          directory: Directory.Documents
-        });
-        alert(`📸 ${fileName} 저장 완료!`);
-      } catch (err) {
-        console.error("사진 캡처 실패:", err);
-      }
-    }
-
-    // 현재 위치 가져오기
-    async function getLocation() {
-      try {
-        const position = await Geolocation.getCurrentPosition();
-        alert(`위치: ${position.coords.latitude}, ${position.coords.longitude}`);
-      } catch (err) {
-        console.error("위치 권한 없음:", err);
-      }
-    }
-
-    // 네이티브 AR 실행
-    async function openAr() {
-      try {
-        const plugin = window.Capacitor?.Plugins?.ArLauncher;
-        if (!plugin) {
-          alert("ArLauncher 플러그인을 찾을 수 없습니다.");
-          return;
-        }
-        const res = await plugin.open();
-        console.log("ArActivity launched:", res);
-      } catch (e) {
-        alert("네이티브 실행 실패: " + (e.message || e));
-      }
-    }
-
-    // 초기화
-    document.addEventListener("DOMContentLoaded", () => {
-      requestAllPermissions();
-      document.getElementById("captureBtn").addEventListener("click", capturePhoto);
-      document.getElementById("locBtn").addEventListener("click", getLocation);
-      document.getElementById("openArBtn").addEventListener("click", openAr);
+<!-- Capacitor 브리지 -->
+<script src="capacitor.js"></script>
+<script>
+  // ✅ Capacitor가 준비될 때까지 대기 (JS에서 너무 일찍 호출하면 못 찾음)
+  function waitCapacitorReady(timeout = 4000) {
+    return new Promise((resolve) => {
+      if (window.Capacitor?.Plugins) return resolve(true);
+      const start = Date.now();
+      const id = setInterval(() => {
+        if (window.Capacitor?.Plugins) { clearInterval(id); resolve(true); }
+        else if (Date.now() - start > timeout) { clearInterval(id); resolve(false); }
+      }, 50);
     });
-  </script>
-</body>
-</html>
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const ready = await waitCapacitorReady();
+    if (!ready) {
+      alert('Capacitor 준비 실패(타임아웃). 네트워크/로딩을 확인해주세요.');
+      return;
+    }
+
+    // 🔎 자체 진단: 플러그인 목록 표시
+    // alert('Plugins: ' + Object.keys(window.Capacitor.Plugins || {}));
+
+    const ArLauncher = window.Capacitor.Plugins.ArLauncher;
+    if (!ArLauncher) {
+      alert('ArLauncher 플러그인을 찾을 수 없습니다.');
+      return;
+    }
+
+    // 🔎 ping 테스트 (네이티브 플러그인 로딩 확인)
+    try {
+      const ping = await ArLauncher.ping();
+      console.log('ArLauncher.ping()', ping);
+    } catch (e) {
+      alert('ArLauncher.ping 실패: ' + (e.message || e));
+    }
+
+    // 버튼 동작
+    document.getElementById('openArBtn')?.addEventListener('click', async () => {
+      try {
+        const res = await ArLauncher.open();
+        console.log('ArActivity launched:', res);
+      } catch (e) {
+        alert('네이티브 실행 실패: ' + (e.message || e));
+      }
+    });
+  });
+</script>
