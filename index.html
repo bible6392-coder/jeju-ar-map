@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>제주 맛집 AR</title>
+  <style>
+    body { margin:0; padding:0; font-family:sans-serif; overflow:hidden; }
+    #camera-view { width:100vw; height:100vh; background:#000; position:relative; }
+    .bottom-controls { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); display:flex; gap:20px; }
+    .control-btn { width:60px; height:60px; border-radius:50%; border:none; font-size:24px; cursor:pointer; }
+    .capture-btn { background:#ff6b6b; color:white; }
+  </style>
+</head>
+<body>
+  <div id="camera-view">
+    <!-- 기존 AR 마커/오버레이는 그대로 두시면 됩니다 -->
+
+    <!-- 하단 버튼 -->
+    <div class="bottom-controls">
+      <button id="captureBtn" class="control-btn capture-btn">📷</button>
+      <button id="locBtn" class="control-btn">📍</button>
+    </div>
+  </div>
+
+  <!-- ✅ Capacitor 플러그인 사용 코드 -->
+  <script type="module">
+    import { Camera, CameraResultType } from '@capacitor/camera';
+    import { Filesystem, Directory } from '@capacitor/filesystem';
+    import { Geolocation } from '@capacitor/geolocation';
+
+    // 권한 요청
+    async function requestAllPermissions() {
+      try {
+        await Camera.requestPermissions();
+        await Geolocation.requestPermissions();
+        console.log("권한 허용됨");
+      } catch (err) {
+        console.error("권한 요청 실패:", err);
+      }
+    }
+
+    // 사진 촬영 & 저장
+    async function capturePhoto() {
+      try {
+        const photo = await Camera.getPhoto({
+          resultType: CameraResultType.Base64,
+          source: 'camera',
+          quality: 80
+        });
+
+        const fileName = `photo_${Date.now()}.jpeg`;
+
+        await Filesystem.writeFile({
+          path: fileName,
+          data: photo.base64String,
+          directory: Directory.Documents
+        });
+
+        alert(`📸 ${fileName} 저장 완료!`);
+      } catch (err) {
+        console.error("사진 캡처 실패:", err);
+      }
+    }
+
+    // 현재 위치 가져오기
+    async function getLocation() {
+      try {
+        const position = await Geolocation.getCurrentPosition();
+        alert(`위치: ${position.coords.latitude}, ${position.coords.longitude}`);
+      } catch (err) {
+        console.error("위치 권한 없음:", err);
+      }
+    }
+
+    // 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+      requestAllPermissions();
+      document.getElementById("captureBtn").addEventListener("click", capturePhoto);
+      document.getElementById("locBtn").addEventListener("click", getLocation);
+    });
+  </script>
+</body>
+</html>
