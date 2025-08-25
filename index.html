@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <div class="badge">v-2025-08-26-최종</div>
+  <div class="badge">v-2025-08-26-디버그</div>
 
   <div class="wrap">
     <div class="controls">
@@ -37,6 +37,12 @@
   <!-- Capacitor 브리지 -->
   <script src="capacitor.js"></script>
   <script>
+    // ✅ 디버그: JS 에러를 alert로 표시
+    window.onerror = (msg, src, line, col, err) => {
+      alert("JS 에러: " + msg + "\\n@" + src + ":" + line + ":" + col);
+    };
+    console.log("✅ index.html loaded");
+
     function waitCapacitorReady(timeout = 4000) {
       return new Promise((resolve) => {
         if (window.Capacitor?.Plugins) return resolve(true);
