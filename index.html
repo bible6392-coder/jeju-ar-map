@@ -86,37 +86,29 @@
 </script>
 <!-- ✅ Capacitor 브릿지: 원격 로딩(server.url)에서도 이 경로는 네이티브가 가짜로 제공해줍니다 -->
 <script src="capacitor.js"></script>
-
 <script>
-  // 브리지/플러그인 존재 확인
-  function bridgeReady() {
-    const cap = !!window.Capacitor;
+  // 브릿지/플러그인 로딩 상태 점검
+  (function bridgeReady() {
+    const capOK = !!window.Capacitor;
     const plugins = Object.keys(window.Capacitor?.Plugins ?? {});
-    console.log('[Bridge]', { cap, plugins });
-    if (!cap) alert('Capacitor 브릿지가 로드되지 않았습니다 (capacitor.js 확인).');
+    console.log('[Bridge]', { capOK, plugins });
+    if (!capOK) alert('capacitor.js 가 로드되지 않았습니다.');
     else if (!plugins.includes('ArLauncher')) alert('ArLauncher 플러그인이 보이지 않습니다.');
-  }
+  })();
 
-  // 네이티브 ARActivity 실행
-  async function openNativeAr() {
+  // 네이티브 실행
+  document.getElementById('openArBtn')?.addEventListener('click', async () => {
     try {
       const plugin = window.Capacitor?.Plugins?.ArLauncher;
-      if (!plugin) {
-        alert('네이티브 플러그인을 찾을 수 없습니다. (ArLauncher)');
-        return;
-      }
+      if (!plugin) return alert('ArLauncher 플러그인을 찾을 수 없습니다.');
       const res = await plugin.open();
       console.log('ArActivity launched:', res);
     } catch (e) {
       alert('네이티브 실행 실패: ' + (e.message || e));
     }
-  }
-
-  document.getElementById('openArBtn')?.addEventListener('click', openNativeAr);
-
-  // 페이지 로드 후 1회 진단
-  bridgeReady();
+  });
 </script>
+
 
 </body>
 
