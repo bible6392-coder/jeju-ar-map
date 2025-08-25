@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: content:">
     <title>Jeju AR Map</title>
     <style>
         body { 
@@ -14,72 +13,34 @@
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             height: 100vh;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
         }
-        .status { 
-            position: fixed; 
-            top: 20px; 
-            left: 20px; 
-            background: rgba(0,255,0,0.2);
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 14px;
-        }
         .content {
             text-align: center;
-            padding: 20px;
-        }
-        .debug-info {
-            margin-top: 20px;
-            padding: 20px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            font-size: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="status">✅ HTML Loaded</div>
-    
     <div class="content">
-        <h1>🌴 Jeju AR Map</h1>
-        <p>테스트 페이지</p>
-        
-        <div class="debug-info">
-            <p>Platform: <span id="platform">checking...</span></p>
-            <p>Capacitor: <span id="capacitor">checking...</span></p>
-            <p>Time: <span id="time"></span></p>
-        </div>
+        <h1>제주 AR Map</h1>
+        <p>Loading...</p>
     </div>
 
     <script>
-        // 시간 표시
-        document.getElementById('time').innerText = new Date().toLocaleString();
-        
-        // Capacitor 체크
-        if (typeof Capacitor !== 'undefined') {
-            document.getElementById('capacitor').innerText = '✅ Loaded';
-            document.getElementById('platform').innerText = Capacitor.getPlatform();
+        // Capacitor 로드 대기
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
             
-            // Capacitor 플러그인 테스트
-            if (Capacitor.Plugins && Capacitor.Plugins.App) {
-                console.log('App plugin available');
-            }
-        } else {
-            document.getElementById('capacitor').innerText = '❌ Not found';
-            document.getElementById('platform').innerText = 'Web Browser';
-        }
-        
-        // 콘솔 로그
-        console.log('Page loaded at:', new Date().toISOString());
-        
-        // 5초 후 실제 앱으로 전환 (선택사항)
-        setTimeout(() => {
-            console.log('Ready to load full app...');
-            // window.location.href = 'app.html'; // 실제 앱 페이지로 이동
-        }, 5000);
+            // Capacitor 체크를 지연시킴
+            setTimeout(function() {
+                if (window.Capacitor) {
+                    console.log('Capacitor is ready');
+                } else {
+                    console.log('Running in web browser');
+                }
+            }, 100);
+        });
     </script>
 </body>
 </html>
