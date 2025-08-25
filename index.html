@@ -1,44 +1,106 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bridge Test</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>제주 맛집 AR</title>
   <style>
-    body { margin:0; height:100vh; display:flex; align-items:center; justify-content:center; background:#111; color:#fff; font-family:sans-serif }
-    button { font-size:18px; padding:14px 20px; border-radius:8px; border:none; }
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body { background: #111; color: #eee; }
+    .container { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+    .card {
+      width: min(680px, 92vw);
+      background: #1b1b1b;
+      color: #eee;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    h1 { margin: 0 0 12px; font-size: 28px; }
+    p  { margin: 6px 0 14px; opacity: .85; line-height: 1.45; }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    .btn {
+      appearance: none; border: 0; border-radius: 28px;
+      padding: 14px 18px; font-size: 16px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-primary { background: #ff6b6b; color: #fff; }
+    .btn-ghost   { background: #2a2a2a; color: #eaeaea; }
+
+    .pill {
+      display: inline-block; padding: 6px 10px; border-radius: 999px;
+      background: #222; color: #bbb; font-size: 12px; margin-right: 6px;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .muted { opacity: .6; font-size: 13px; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <div>
-    <h2>Capacitor Bridge Test</h2>
-    <p id="status">Loading…</p>
-    <button id="openArBtn">📷 네이티브 AR 열기</button>
+  <div class="container">
+    <div class="card">
+      <h1>Capacitor Bridge Test</h1>
+      <p id="envLine" class="mono pill">[Bridge] 준비중…</p>
+
+      <div class="actions">
+        <!-- 네이티브 ARActivity 열기 -->
+        <button id="openArBtn" class="btn btn-primary">📷 네이티브 AR 열기</button>
+
+        <!-- 현재 위치 표시(웹/네이티브 둘 다 폴백) -->
+        <button id="locBtn" class="btn btn-ghost">📍 현재 위치</button>
+      </div>
+
+      <p class="muted">버튼을 눌러 네이티브 카메라(AR 프리뷰)를 실행하세요. 뒤로가기를 누르면 이 화면으로 돌아옵니다.</p>
+    </div>
   </div>
 
-  <!-- 꼭 body 닫기 직전! -->
+  <!-- ✅ Capacitor 브리지 (전역 window.Capacitor 제공) -->
   <script src="capacitor.js"></script>
   <script>
-    // 브리지/플러그인 확인
-    (function () {
-      const capOK = !!window.Capacitor;
-      const plugins = Object.keys(window.Capacitor?.Plugins ?? {});
-      document.getElementById('status').textContent =
-        `[Bridge] cap=${capOK} plugins=${plugins.join(', ')}`;
-      if (!capOK) alert('capacitor.js 로드 실패');
-      else if (!plugins.includes('ArLauncher')) alert('ArLauncher 플러그인이 보이지 않음');
-      console.log('[Bridge]', { capOK, plugins });
+    // 환경/플러그인 표시
+    (function showEnv() {
+      const cap = window.Capacitor || {};
+      const isCap = !!cap.Plugins;
+      const names = isCap ? Object.keys(cap.Plugins).sort() : [];
+      const line = `[Bridge] cap=${isCap} plugins=${names.join(', ') || 'none'}`;
+      document.getElementById('envLine').textContent = line;
     })();
 
-    // 네이티브 실행
+    // 네이티브 ARActivity 실행
     document.getElementById('openArBtn')?.addEventListener('click', async () => {
       try {
         const plugin = window.Capacitor?.Plugins?.ArLauncher;
-        if (!plugin) return alert('ArLauncher 플러그인을 찾을 수 없습니다.');
+        if (!plugin) return alert('ArLauncher 플러그인이 보이지 않습니다.\n(MainActivity.registerPlugin, @CapacitorPlugin(name="ArLauncher") 확인)');
+
         const res = await plugin.open();
-        console.log('ArActivity launched', res);
+        console.log('ArActivity launched:', res);
       } catch (e) {
-        alert('네이티브 실행 실패: ' + (e.message || e));
+        alert('네이티브 실행 실패: ' + (e?.message || e));
+      }
+    });
+
+    // 현재 위치 (Capacitor Geolocation → 웹 geolocation 폴백)
+    document.getElementById('locBtn')?.addEventListener('click', async () => {
+      try {
+        if (window.Capacitor?.Plugins?.Geolocation) {
+          const pos = await window.Capacitor.Plugins.Geolocation.getCurrentPosition();
+          alert(`위치: ${pos.coords.latitude}, ${pos.coords.longitude}`);
+          return;
+        }
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            p => alert(`위치: ${p.coords.latitude}, ${p.coords.longitude}`),
+            err => alert('위치 실패: ' + err.message),
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+          return;
+        }
+        alert('이 환경에서는 위치 기능을 지원하지 않습니다.');
+      } catch (e) {
+        alert('위치 실패: ' + (e?.message || e));
       }
     });
   </script>
