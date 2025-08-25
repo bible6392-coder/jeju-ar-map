@@ -41,48 +41,83 @@
   </style>
 </head>
 <body>
-  <div id="camera-view">
-    <!-- 하단 버튼 -->
-    <div class="bottom-controls">
-      <!-- 네이티브 ARActivity 실행 버튼 -->
-      <button id="openArBtn" class="control-btn capture-btn">📷 카메라</button>
-      <!-- 위치 확인 버튼 -->
-      <button id="locBtn" class="control-btn">📍</button>
-    </div>
+<div id="camera-view">
+  <!-- 하단 버튼 -->
+  <div class="bottom-controls">
+    <!-- 네이티브 ARActivity 실행 버튼 -->
+    <button id="openArBtn" class="control-btn capture-btn">📷 카메라</button>
+    <!-- 위치 확인 버튼 -->
+    <button id="locBtn" class="control-btn">📍</button>
   </div>
+</div>
 
-  <!-- ✅ Capacitor 브릿지 -->
-  <script src="capacitor.js"></script>
-  <script>
-    // 네이티브 ArActivity 실행
-    document.getElementById("openArBtn")?.addEventListener("click", async () => {
-      try {
-        const plugin = window.Capacitor?.Plugins?.ArLauncher;
-        if (!plugin) return alert("네이티브 플러그인을 찾을 수 없습니다.");
-        await plugin.open();
-      } catch (e) {
-        alert("네이티브 실행 실패: " + (e.message || e));
-      }
-    });
+<!-- ✅ Capacitor 브릿지 -->
+<script src="capacitor.js"></script>
+<script>
+  // 네이티브 ArActivity 실행
+  document.getElementById("openArBtn")?.addEventListener("click", async () => {
+    try {
+      const plugin = window.Capacitor?.Plugins?.ArLauncher;
+      if (!plugin) return alert("네이티브 플러그인을 찾을 수 없습니다.");
+      await plugin.open();
+    } catch (e) {
+      alert("네이티브 실행 실패: " + (e.message || e));
+    }
+  });
 
-    // 현재 위치 확인
-    document.getElementById("locBtn")?.addEventListener("click", async () => {
-      try {
-        if (window.Capacitor?.Plugins?.Geolocation) {
-          const pos = await window.Capacitor.Plugins.Geolocation.getCurrentPosition();
-          alert(`위치: ${pos.coords.latitude}, ${pos.coords.longitude}`);
-        } else if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            p => alert(`위치: ${p.coords.latitude}, ${p.coords.longitude}`),
-            err => alert("위치 실패: " + err.message)
-          );
-        } else {
-          alert("이 환경에서는 위치 기능을 지원하지 않습니다.");
-        }
-      } catch (e) {
-        alert("위치 실패: " + (e.message || e));
+  // 현재 위치 확인
+  document.getElementById("locBtn")?.addEventListener("click", async () => {
+    try {
+      if (window.Capacitor?.Plugins?.Geolocation) {
+        const pos = await window.Capacitor.Plugins.Geolocation.getCurrentPosition();
+        alert(`위치: ${pos.coords.latitude}, ${pos.coords.longitude}`);
+      } else if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          p => alert(`위치: ${p.coords.latitude}, ${p.coords.longitude}`),
+          err => alert("위치 실패: " + err.message)
+        );
+      } else {
+        alert("이 환경에서는 위치 기능을 지원하지 않습니다.");
       }
-    });
-  </script>
+    } catch (e) {
+      alert("위치 실패: " + (e.message || e));
+    }
+  });
+</script>
+<!-- ✅ Capacitor 브릿지: 원격 로딩(server.url)에서도 이 경로는 네이티브가 가짜로 제공해줍니다 -->
+<script src="capacitor.js"></script>
+
+<script>
+  // 브리지/플러그인 존재 확인
+  function bridgeReady() {
+    const cap = !!window.Capacitor;
+    const plugins = Object.keys(window.Capacitor?.Plugins ?? {});
+    console.log('[Bridge]', { cap, plugins });
+    if (!cap) alert('Capacitor 브릿지가 로드되지 않았습니다 (capacitor.js 확인).');
+    else if (!plugins.includes('ArLauncher')) alert('ArLauncher 플러그인이 보이지 않습니다.');
+  }
+
+  // 네이티브 ARActivity 실행
+  async function openNativeAr() {
+    try {
+      const plugin = window.Capacitor?.Plugins?.ArLauncher;
+      if (!plugin) {
+        alert('네이티브 플러그인을 찾을 수 없습니다. (ArLauncher)');
+        return;
+      }
+      const res = await plugin.open();
+      console.log('ArActivity launched:', res);
+    } catch (e) {
+      alert('네이티브 실행 실패: ' + (e.message || e));
+    }
+  }
+
+  document.getElementById('openArBtn')?.addEventListener('click', openNativeAr);
+
+  // 페이지 로드 후 1회 진단
+  bridgeReady();
+</script>
+
 </body>
+
 </html>
