@@ -104,5 +104,11 @@
       }
     });
   </script>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    console.log("Capacitor Plugins:", window.Capacitor?.Plugins);
+    alert("플러그인 목록: " + Object.keys(window.Capacitor?.Plugins || {}));
+  });
+</script>
 </body>
 </html>
