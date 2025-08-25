@@ -1,83 +1,149 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>제주 맛집 AR</title>
   <style>
-    body { margin:0; padding:0; font-family:sans-serif; overflow:hidden; }
-    #camera-view { width:100vw; height:100vh; background:#000; position:relative; }
-    .bottom-controls { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); display:flex; gap:20px; }
-    .control-btn { width:60px; height:60px; border-radius:50%; border:none; font-size:24px; cursor:pointer; }
-    .capture-btn { background:#ff6b6b; color:white; }
+    html,body { margin:0; padding:0; height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    #camera-view { position:relative; width:100vw; height:100vh; background:#000; overflow:hidden; }
+    /* toBack:true일 때 프리뷰가 뒤에 깔리고 버튼은 위에 떠요 */
+    .bottom-controls { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); display:flex; gap:16px; z-index:10; }
+    .control-btn { width:64px; height:64px; border:none; border-radius:50%; font-size:26px; cursor:pointer; background:#fff; box-shadow:0 6px 14px rgba(0,0,0,.25); }
+    .capture-btn { background:#ff6b6b; color:#fff; }
+    .toast { position:fixed; left:50%; top:80px; transform:translateX(-50%); background:rgba(0,0,0,.85); color:#fff; padding:10px 14px; border-radius:14px; font-size:14px; z-index:20; display:none; }
+    .toast.show { display:block; }
   </style>
 </head>
 <body>
   <div id="camera-view">
-    <!-- 기존 AR 마커/오버레이는 그대로 두시면 됩니다 -->
-
-    <!-- 하단 버튼 -->
+    <!-- 여기에 이후 AR 마커/오버레이를 자유롭게 올리면 됩니다 -->
     <div class="bottom-controls">
-      <button id="captureBtn" class="control-btn capture-btn">📷</button>
-      <button id="locBtn" class="control-btn">📍</button>
+      <button id="helpBtn" class="control-btn" title="도움말">ℹ️</button>
+      <button id="flashBtn" class="control-btn" title="플래시">💡</button>
+      <button id="captureBtn" class="control-btn capture-btn" title="사진찍기">📷</button>
+      <button id="locBtn" class="control-btn" title="내 위치">📍</button>
     </div>
   </div>
+  <div id="toast" class="toast"></div>
 
-  <!-- ✅ Capacitor 플러그인 사용 코드 -->
-  <script type="module">
-    import { Camera, CameraResultType } from '@capacitor/camera';
-    import { Filesystem, Directory } from '@capacitor/filesystem';
-    import { Geolocation } from '@capacitor/geolocation';
+  <!-- ✅ Capacitor 네이티브 브리지 (앱이 제공) -->
+  <script src="capacitor.js"></script>
 
-    // 권한 요청
+  <!-- ✅ 전역 브리지로 플러그인 사용 (Capacitor 6) -->
+  <script>
+    const showToast = (msg, ms=1500) => {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), ms);
+    };
+
+    // 전역 브리지에서 플러그인 참조
+    const P = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : {};
+    const Camera          = P.Camera;           // 권한 요청용
+    const Geolocation     = P.Geolocation;
+    const Filesystem      = P.Filesystem;
+    const CameraPreview   = P.CameraPreview;    // 실시간 프리뷰/촬영
+    let flashOn = false;
+
     async function requestAllPermissions() {
+      if (!window.Capacitor?.isNativePlatform?.()) return;
       try {
-        await Camera.requestPermissions();
-        await Geolocation.requestPermissions();
-        console.log("권한 허용됨");
-      } catch (err) {
-        console.error("권한 요청 실패:", err);
+        await Camera?.requestPermissions?.();        // CAMERA
+        await Geolocation?.requestPermissions?.();   // LOCATION
+      } catch (e) { console.error('권한 요청 실패:', e); }
+    }
+
+    async function startPreview() {
+      if (!CameraPreview) return;
+      try {
+        await CameraPreview.start({
+          position: 'rear',
+          parent: 'camera-view',   // 프리뷰가 깔릴 컨테이너 id
+          className: 'cameraPreview',
+          toBack: true,            // 프리뷰를 뒤로 (UI는 위에)
+          enableHighResolution: true
+        });
+      } catch (e) {
+        console.error('프리뷰 시작 실패:', e);
+        showToast('카메라 프리뷰 시작 실패');
       }
     }
 
-    // 사진 촬영 & 저장
+    async function stopPreview() {
+      try { await CameraPreview?.stop?.(); } catch(_) {}
+    }
+
+    async function toggleFlash() {
+      if (!CameraPreview?.setFlashMode) return;
+      try {
+        flashOn = !flashOn;
+        await CameraPreview.setFlashMode({ flashMode: flashOn ? 'on' : 'off' });
+        showToast(flashOn ? '플래시 ON' : '플래시 OFF');
+      } catch (e) { console.error(e); }
+    }
+
     async function capturePhoto() {
       try {
-        const photo = await Camera.getPhoto({
-          resultType: CameraResultType.Base64,
-          source: 'camera',
-          quality: 80
-        });
+        // CameraPreview.capture는 base64 반환
+        const shot = await CameraPreview.capture({ quality: 85 });
+        const base64 = shot?.value || shot?.data;   // 플러그인 버전에 따라 키가 다를 수 있음
+        if (!base64) throw new Error('no image');
 
         const fileName = `photo_${Date.now()}.jpeg`;
-
         await Filesystem.writeFile({
           path: fileName,
-          data: photo.base64String,
-          directory: Directory.Documents
+          data: base64,
+          directory: 'DOCUMENTS'
         });
-
-        alert(`📸 ${fileName} 저장 완료!`);
-      } catch (err) {
-        console.error("사진 캡처 실패:", err);
+        showToast(`📸 저장 완료: ${fileName}`);
+      } catch (e) {
+        console.error('촬영/저장 실패:', e);
+        showToast('촬영/저장 실패');
       }
     }
 
-    // 현재 위치 가져오기
     async function getLocation() {
       try {
-        const position = await Geolocation.getCurrentPosition();
-        alert(`위치: ${position.coords.latitude}, ${position.coords.longitude}`);
-      } catch (err) {
-        console.error("위치 권한 없음:", err);
+        const pos = await Geolocation.getCurrentPosition();
+        const { latitude, longitude } = pos.coords || {};
+        showToast(`위치: ${latitude?.toFixed(5)}, ${longitude?.toFixed(5)}`);
+        // TODO: 여기서 POI와 거리/방위각 계산해 AR 오버레이 갱신
+      } catch (e) {
+        console.error('위치 실패:', e);
+        showToast('위치 권한 필요');
       }
     }
 
-    // 초기화
-    document.addEventListener('DOMContentLoaded', () => {
-      requestAllPermissions();
-      document.getElementById("captureBtn").addEventListener("click", capturePhoto);
-      document.getElementById("locBtn").addEventListener("click", getLocation);
+    function showHelp() {
+      alert([
+        '제주 맛집 AR',
+        '- 배경: 실시간 카메라 프리뷰',
+        '- 📷: 캡처 후 기기에 저장',
+        '- 💡: 플래시 토글',
+        '- 📍: 현재 위치 표시',
+        'GitHub Pages에 파일 수정 시 앱에 자동 반영됩니다.'
+      ].join('\n'));
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 네이티브 환경에서만 동작
+      if (window.Capacitor?.isNativePlatform?.()) {
+        await requestAllPermissions();
+        await startPreview();
+      }
+      // 버튼 바인딩
+      document.getElementById('helpBtn')?.addEventListener('click', showHelp);
+      document.getElementById('flashBtn')?.addEventListener('click', toggleFlash);
+      document.getElementById('captureBtn')?.addEventListener('click', capturePhoto);
+      document.getElementById('locBtn')?.addEventListener('click', getLocation);
+    });
+
+    // 앱 종료/백그라운드 대비로 정리 (선택)
+    document.addEventListener('pause', stopPreview);
+    document.addEventListener('resume', () => {
+      if (window.Capacitor?.isNativePlatform?.()) startPreview();
     });
   </script>
 </body>
