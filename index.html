@@ -1,46 +1,65 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jeju AR Map</title>
-    <style>
-        body { 
-            margin: 0; 
-            padding: 0;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: #fff; 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .content {
-            text-align: center;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Jeju AR Map</title>
+  <style>
+    body { margin:0; font-family:system-ui, sans-serif; background:#111; color:#fff; }
+    .wrap { height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; }
+    .btn { padding:14px 22px; border-radius:12px; border:0; font-size:18px; cursor:pointer; }
+    .btn-primary { background:#00c2ff; color:#000; }
+    .btn-secondary { background:#2a2a2a; color:#fff; }
+    .note { opacity:.8; font-size:14px; }
+  </style>
 </head>
 <body>
-    <div class="content">
-        <h1>제주 AR Map</h1>
-        <p>Loading...</p>
-    </div>
+<div class="wrap">
+  <h1>Jeju AR Map</h1>
+  <div>
+    <button id="openArBtn" class="btn btn-primary">📷 AR 시작</button>
+    <button id="checkBtn" class="btn btn-secondary">상태 점검</button>
+  </div>
+  <div id="out" class="note">준비됨</div>
+</div>
 
-    <script>
-        // Capacitor 로드 대기
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded');
-            
-            // Capacitor 체크를 지연시킴
-            setTimeout(function() {
-                if (window.Capacitor) {
-                    console.log('Capacitor is ready');
-                } else {
-                    console.log('Running in web browser');
-                }
-            }, 100);
-        });
-    </script>
+<script>
+  const out = document.getElementById('out');
+
+  function log(msg) {
+    console.log(msg);
+    out.textContent = String(msg);
+  }
+
+  function cap() { return window.Capacitor || window.CapacitorNative; }
+  function plugins() { return (cap() && (cap().Plugins || cap().plugins)) || {}; }
+
+  // Capacitor 준비 후 버튼 바인딩
+  document.addEventListener('DOMContentLoaded', () => {
+    const arBtn = document.getElementById('openArBtn');
+    const checkBtn = document.getElementById('checkBtn');
+
+    arBtn.addEventListener('click', async () => {
+      try {
+        const p = plugins();
+        const ArLauncher = p.ArLauncher || p.ArLauncherPlugin;
+        if (!ArLauncher) {
+          alert('네이티브 플러그인을 찾을 수 없습니다 (ArLauncher).');
+          return;
+        }
+        const res = await ArLauncher.open(); // 네이티브 ArActivity 실행
+        log('AR launched: ' + JSON.stringify(res || {}));
+      } catch (e) {
+        alert('네이티브 실행 실패: ' + (e.message || e));
+      }
+    });
+
+    checkBtn.addEventListener('click', () => {
+      const isNative = !!cap() && !!cap().isNativePlatform && cap().isNativePlatform();
+      const p = Object.keys(plugins());
+      log('isNative=' + isNative + ' | plugins=' + p.join(', '));
+    });
+  });
+</script>
 </body>
 </html>
