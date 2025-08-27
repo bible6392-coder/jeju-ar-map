@@ -1,0 +1,6 @@
+[
+  { "name": "블루버드 카페", "lat": 33.489011, "lng": 126.498302, "category": "cafe" },
+  { "name": "제주 흑돼지맛집", "lat": 33.505112, "lng": 126.529981, "category": "food" },
+  { "name": "감귤 체험농장", "lat": 33.475551, "lng": 126.491231, "category": "activity" },
+  { "name": "용두암 전망", "lat": 33.51535,  "lng": 126.511876, "category": "spot" }
+]
